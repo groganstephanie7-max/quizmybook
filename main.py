@@ -5,6 +5,7 @@ from lessons import lessons
 from quiz_engine import run_quiz
 from pasted_text_quiz import create_pasted_text_questions
 from source_summaries import source_summaries, show_source_summary
+from internet_lookup import show_internet_summary
 
 
 REVIEW_BANK_FILE = "review_bank.json"
@@ -46,9 +47,10 @@ def show_menu():
     print("2. Paste study text")
     print("3. Review missed questions")
     print("4. View source-backed summaries")
-    print("5. Search by book title")
-    print("6. Search by ISBN/barcode")
-    print("7. Exit")
+    print("5. Search the internet for a topic")
+    print("6. Search by book title")
+    print("7. Search by ISBN/barcode")
+    print("8. Exit")
 
 
 def ask_return_to_menu():
@@ -356,6 +358,29 @@ def handle_source_summaries():
             print("Please enter a number or type 'back'.")
 
 
+def handle_internet_topic_search():
+    print("\nInternet Topic Lookup")
+    print("---------------------")
+    print("This feature pulls a live summary from Wikipedia.")
+    print("You can type 'back' to return to the main menu.")
+
+    topic = input("\nEnter a topic to look up: ").strip()
+
+    if topic.lower() == "back":
+        return
+
+    if topic == "":
+        print("\nNo topic was entered.")
+        return
+
+    result = show_internet_summary(topic)
+
+    if result["status"] == "success":
+        print("\nInternet lookup complete.")
+        print("This is currently read-only.")
+        print("Next version can turn this summary into quiz questions.")
+
+
 def handle_book_title_search():
     print("\nBook title search is planned, but not active yet.")
     print("Future versions will use a book title to identify the learning topic.")
@@ -402,20 +427,24 @@ def main():
             keep_running = ask_return_to_menu()
 
         elif choice == "5":
-            handle_book_title_search()
+            handle_internet_topic_search()
             keep_running = ask_return_to_menu()
 
         elif choice == "6":
-            handle_isbn_barcode_search()
+            handle_book_title_search()
             keep_running = ask_return_to_menu()
 
         elif choice == "7":
+            handle_isbn_barcode_search()
+            keep_running = ask_return_to_menu()
+
+        elif choice == "8":
             print("\nGood job today, keep learning!")
             save_review_bank()
             keep_running = False
 
         else:
-            print("\nPlease choose 1, 2, 3, 4, 5, 6, or 7.")
+            print("\nPlease choose 1, 2, 3, 4, 5, 6, 7, or 8.")
 
 
 if __name__ == "__main__":

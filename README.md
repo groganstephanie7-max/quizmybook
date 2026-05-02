@@ -2,7 +2,7 @@
 
 QuizMyBook is a beginner-friendly Python command-line learning and quiz app.
 
-The goal of this project is to help a user study from a learning topic, pasted study text, book title, or ISBN/barcode. The app is being built toward a source-backed learning system that can create lessons, identify key terms, generate quizzes, show source notes, provide source links, save missed-question progress, and eventually verify information using reliable sources.
+The goal of this project is to help a user study from a learning topic, pasted study text, internet topic lookup, book title, or ISBN/barcode. The app is being built toward a source-backed learning system that can create lessons, identify key terms, generate quizzes, show source notes, provide source links, save missed-question progress, pull live topic summaries from the internet, and eventually verify information using reliable sources.
 
 ---
 
@@ -18,6 +18,8 @@ QuizMyBook currently supports:
 - Optional quiz after viewing a source-backed summary
 - Source links for source-backed summaries
 - Source names, URLs, and notes for each summary topic
+- Live internet topic lookup using Wikipedia summaries
+- Displaying internet summary source URLs
 - Pasting study text and generating a quiz
 - Choosing how to study:
   - by number of questions
@@ -54,9 +56,10 @@ A source-backed learning and quiz app.
 2. Paste study text
 3. Review missed questions
 4. View source-backed summaries
-5. Search by book title
-6. Search by ISBN/barcode
-7. Exit
+5. Search the internet for a topic
+6. Search by book title
+7. Search by ISBN/barcode
+8. Exit
 ```
 
 ---
@@ -100,6 +103,101 @@ The app uses that choice to create a study session.
 ### Default Quiz
 
 The user can choose the default quiz option if the user does not want to customize the number of questions or study time.
+
+---
+
+## Internet Topic Lookup
+
+QuizMyBook now includes a live internet topic lookup feature.
+
+This feature uses `internet_lookup.py` to pull a live topic summary from Wikipedia and display the source URL.
+
+### Current Behavior
+
+- Adds a main menu option for internet topic lookup
+- Lets the user type a topic
+- Pulls a live Wikipedia summary
+- Displays the topic title
+- Displays the summary
+- Displays the source URL
+- Handles empty input
+- Allows the user to type `back` to return to the menu
+- Keeps the feature read-only for now
+
+### Example Flow
+
+```text
+Welcome to QuizMyBook!
+A source-backed learning and quiz app.
+-----------------------------------
+1. Enter a learning topic
+2. Paste study text
+3. Review missed questions
+4. View source-backed summaries
+5. Search the internet for a topic
+6. Search by book title
+7. Search by ISBN/barcode
+8. Exit
+
+Choose an option: 5
+```
+
+The app then shows:
+
+```text
+Internet Topic Lookup
+---------------------
+This feature pulls a live summary from Wikipedia.
+You can type 'back' to return to the main menu.
+
+Enter a topic to look up:
+```
+
+Example topic:
+
+```text
+machine learning
+```
+
+Example output:
+
+```text
+========================================
+Internet Topic Summary
+========================================
+
+Topic:
+Machine learning
+
+Summary:
+Machine learning is a field of study in artificial intelligence...
+
+Source:
+https://en.wikipedia.org/wiki/Machine_learning
+
+Internet lookup complete.
+This is currently read-only.
+Next version can turn this summary into quiz questions.
+```
+
+### Current Limitations
+
+Internet topic lookup is currently read-only.
+
+It does not yet:
+
+- Generate quiz questions from the internet summary
+- Compare multiple sources
+- Fact-check across sources
+- Save internet summaries
+- Add internet lookup results to the review bank
+- Create source-backed lesson plans from live lookup results
+
+### Why This Matters
+
+Internet lookup is a major step toward QuizMyBook becoming a real source-backed learning assistant.
+
+Instead of only using built-in summaries, the app can now retrieve a live topic summary and show where the information came from.
 
 ---
 
@@ -168,9 +266,10 @@ A source-backed learning and quiz app.
 2. Paste study text
 3. Review missed questions
 4. View source-backed summaries
-5. Search by book title
-6. Search by ISBN/barcode
-7. Exit
+5. Search the internet for a topic
+6. Search by book title
+7. Search by ISBN/barcode
+8. Exit
 
 Choose an option: 4
 ```
@@ -262,7 +361,7 @@ D. Main Logic Operations
 
 ### Current Limitations
 
-The current source-backed summary mode is built from trusted built-in summaries and manually added source links. It does not yet search the live internet or automatically verify facts across multiple outside sources.
+The current source-backed summary mode is built from trusted built-in summaries and manually added source links. It does not yet automatically verify facts across multiple outside sources.
 
 Future versions may connect this feature to reliable online sources, compare facts, and cite sources directly.
 
@@ -451,7 +550,7 @@ No problem. These questions were saved to your review bank.
 Then the user exits the app:
 
 ```text
-7. Exit
+8. Exit
 ```
 
 When the user later runs:
@@ -611,6 +710,7 @@ Future versions may use ISBN or barcode lookup to identify a book and connect it
 
 Future versions of QuizMyBook may include:
 
+- Quiz generation from internet lookup summaries
 - Source-backed topic summaries from reliable online sources
 - Reliable source comparison
 - Fact-checking across multiple sources
@@ -644,6 +744,7 @@ quizmybook/
 ├── pasted_text_quiz.py
 ├── study_mode.py
 ├── source_summaries.py
+├── internet_lookup.py
 ├── review_bank.example.json
 ├── review_bank.json
 ├── .gitignore
@@ -654,7 +755,7 @@ quizmybook/
 
 ```text
 main.py
-Runs the main menu, loads and saves the review bank, and connects the app together.
+Runs the main menu, loads and saves the review bank, connects source summaries, internet lookup, pasted text, and quiz features together.
 
 lessons.py
 Stores built-in topic lessons, key terms, source notes, and quiz questions.
@@ -670,6 +771,9 @@ Handles study choices such as number of questions, study time, or default quiz m
 
 source_summaries.py
 Stores built-in source-backed topic summaries, key terms, source notes, source links, beginner lesson plans, and quiz questions.
+
+internet_lookup.py
+Pulls live topic summaries from Wikipedia and displays the source URL.
 
 review_bank.example.json
 Shows the safe example structure for saved review questions.
@@ -707,6 +811,42 @@ py main.py
 
 ---
 
+## How to Test Internet Lookup
+
+Run the app:
+
+```bat
+py main.py
+```
+
+Then choose:
+
+```text
+5
+```
+
+Enter a topic:
+
+```text
+machine learning
+```
+
+Expected result:
+
+```text
+Internet Topic Summary
+Topic:
+Machine learning
+
+Summary:
+...
+
+Source:
+https://en.wikipedia.org/wiki/Machine_learning
+```
+
+---
+
 ## Example Usage
 
 ```text
@@ -717,14 +857,15 @@ A source-backed learning and quiz app.
 2. Paste study text
 3. Review missed questions
 4. View source-backed summaries
-5. Search by book title
-6. Search by ISBN/barcode
-7. Exit
+5. Search the internet for a topic
+6. Search by book title
+7. Search by ISBN/barcode
+8. Exit
 
 Choose an option:
 ```
 
-The user chooses an option, selects a study mode, answers quiz questions, and receives a score.
+The user chooses an option, selects a study mode, answers quiz questions, searches internet topics, and receives a score or summary.
 
 ---
 
@@ -743,6 +884,8 @@ Completed so far:
 - Optional quiz after viewing a source-backed summary
 - Source links added to source-backed summaries
 - Source names, URLs, and notes displayed in summaries
+- Internet topic lookup using Wikipedia summaries
+- Internet source URL display
 - Pasted text quiz mode
 - Study mode choices
 - Quiz engine
@@ -756,6 +899,7 @@ Completed so far:
 - Saved review bank progress using `review_bank.json`
 - Safe review bank example file
 - `.gitignore` for GitHub cleanup
+- GitHub repository created and pushed
 - Book title placeholder
 - ISBN/barcode placeholder
 - Project README documentation
@@ -766,15 +910,17 @@ Completed so far:
 
 Recommended next steps:
 
-1. Add more quiz questions for each source-backed summary topic.
-2. Add automatic source lookup from reliable sources.
-3. Add source comparison and fact-checking across multiple sources.
-4. Add automated citations for generated lessons.
-5. Add book title and ISBN lookup as topic-identification helpers.
-6. Add saved quiz history and study statistics.
-7. Add spaced repetition review.
-8. Add more question types and difficulty levels.
-9. Build a simple website version.
+1. Generate quiz questions from internet lookup summaries.
+2. Save internet lookup summaries for later review.
+3. Add more quiz questions for each source-backed summary topic.
+4. Add automatic source lookup from reliable sources beyond Wikipedia.
+5. Add source comparison and fact-checking across multiple sources.
+6. Add automated citations for generated lessons.
+7. Add book title and ISBN lookup as topic-identification helpers.
+8. Add saved quiz history and study statistics.
+9. Add spaced repetition review.
+10. Add more question types and difficulty levels.
+11. Build a simple website version.
 
 ---
 
@@ -792,6 +938,7 @@ Instead of only creating quizzes, QuizMyBook should eventually be able to:
 6. Generate a quiz from the verified lesson
 7. Help the user review missed concepts
 8. Save learning progress over time
+9. Pull live topic information from reliable sources
 
 ---
 
@@ -801,7 +948,11 @@ This project is being built step by step as a Python learning and AI engineering
 
 The current version is intentionally simple, readable, and beginner-friendly.
 
-The source-backed summary mode currently uses built-in summaries and manually added source links from `source_summaries.py`. It does not yet perform live source lookup or automated citation checking.
+The source-backed summary mode currently uses built-in summaries and manually added source links from `source_summaries.py`.
+
+The internet lookup mode currently pulls live summaries from Wikipedia through `internet_lookup.py`.
+
+The app does not yet perform multi-source fact-checking or automated citation checking.
 
 The app currently has 10 built-in source-backed summaries, and each summary now includes source notes, source links, beginner lesson plans, and quiz questions.
 
