@@ -1,0 +1,14 @@
+[
+    {
+        "question": "What does MLOps stand for?",
+        "choices": [
+            "A. Machine Learning Operations",
+            "B. Manual Learning Options",
+            "C. Model Language Output",
+            "D. Main Logic Operations"
+        ],
+        "answer": "A",
+        "hint": "MLOps combines machine learning with operations practices.",
+        "explanation": "MLOps stands for Machine Learning Operations."
+    }
+]
