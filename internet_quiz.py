@@ -15,24 +15,19 @@ STOP_WORDS = {
     "including", "include", "includes", "known", "called", "make",
     "made", "does", "did", "had", "will", "would", "could", "should",
     "because", "however", "therefore", "although", "around", "within",
-    "without", "across", "those", "them", "there", "here", "into",
-    "over", "under", "again", "against", "same", "different"
+    "without", "across", "those", "them", "there", "here", "again",
+    "against", "same", "different", "several", "various", "common",
+    "commonly", "important", "typically", "mainly"
 }
 
 
-GENERIC_WRONG_KEYWORDS = [
-    "banana",
-    "spaceship",
-    "toothbrush",
-    "pancake",
-    "sidewalk",
-    "volcano",
-    "backpack",
-    "television",
-    "snowflake",
-    "umbrella",
-    "shoelace",
-    "cupcake"
+GENERIC_DISTRACTORS = [
+    "It is only a local app setting.",
+    "It is mainly a Git command.",
+    "It is only a deleted cache file.",
+    "It is only an unknown menu option.",
+    "It is not connected to the topic summary.",
+    "It is only a saved review-bank file."
 ]
 
 
@@ -44,6 +39,23 @@ def clean_text(text):
         return ""
 
     return " ".join(str(text).split())
+
+
+def get_result_value(internet_result, possible_keys, default_value=""):
+    """
+    Safely gets a value from the internet lookup result.
+
+    This keeps internet_quiz.py flexible if internet_lookup.py uses
+    slightly different key names.
+    """
+    if not isinstance(internet_result, dict):
+        return default_value
+
+    for key in possible_keys:
+        if key in internet_result and internet_result[key]:
+            return internet_result[key]
+
+    return default_value
 
 
 def split_summary_into_sentences(summary):
@@ -62,22 +74,31 @@ def split_summary_into_sentences(summary):
     for sentence in sentences:
         sentence = clean_text(sentence)
 
-        # Avoid tiny sentence fragments.
-        if len(sentence) >= 45:
+        if len(sentence) >= 35:
             clean_sentences.append(sentence)
 
     return clean_sentences
 
 
+def shorten_text(text, max_length=175):
+    """
+    Keeps long choices readable in the command line.
+    """
+    text = clean_text(text)
+
+    if len(text) <= max_length:
+        return text
+
+    return text[:max_length].rstrip() + "..."
+
+
 def extract_keywords(summary, limit=10):
     """
-    Extracts useful keywords from the summary.
+    Extracts study keywords from the summary.
 
-    This is not AI.
-    It uses simple word frequency and filters out common words.
+    This is not AI. It uses simple frequency and common-word filtering.
     """
     summary = clean_text(summary).lower()
-
     words = re.findall(r"\b[a-zA-Z][a-zA-Z\-]{3,}\b", summary)
 
     counts = {}
@@ -108,35 +129,6 @@ def extract_keywords(summary, limit=10):
     return keywords
 
 
-def get_result_value(internet_result, possible_keys, default_value=""):
-    """
-    Safely gets a value from the internet lookup result.
-
-    This keeps internet_quiz.py flexible if internet_lookup.py uses
-    slightly different key names.
-    """
-    if not isinstance(internet_result, dict):
-        return default_value
-
-    for key in possible_keys:
-        if key in internet_result and internet_result[key]:
-            return internet_result[key]
-
-    return default_value
-
-
-def shorten_text(text, max_length=190):
-    """
-    Keeps long answer choices readable in the command line.
-    """
-    text = clean_text(text)
-
-    if len(text) <= max_length:
-        return text
-
-    return text[:max_length].rstrip() + "..."
-
-
 def make_multiple_choice_question(question, correct_answer, wrong_answers, hint, explanation):
     """
     Builds a multiple-choice question and shuffles the answer choices.
@@ -147,11 +139,29 @@ def make_multiple_choice_question(question, correct_answer, wrong_answers, hint,
     """
     labels = ["A", "B", "C", "D"]
 
+    safe_wrong_answers = []
+
+    for wrong_answer in wrong_answers:
+        wrong_answer = clean_text(wrong_answer)
+
+        if wrong_answer and wrong_answer != correct_answer and wrong_answer not in safe_wrong_answers:
+            safe_wrong_answers.append(wrong_answer)
+
+        if len(safe_wrong_answers) == 3:
+            break
+
+    for fallback in GENERIC_DISTRACTORS:
+        if fallback != correct_answer and fallback not in safe_wrong_answers:
+            safe_wrong_answers.append(fallback)
+
+        if len(safe_wrong_answers) == 3:
+            break
+
     answer_items = [
-        {"text": correct_answer, "is_correct": True},
-        {"text": wrong_answers[0], "is_correct": False},
-        {"text": wrong_answers[1], "is_correct": False},
-        {"text": wrong_answers[2], "is_correct": False},
+        {"text": shorten_text(correct_answer), "is_correct": True},
+        {"text": shorten_text(safe_wrong_answers[0]), "is_correct": False},
+        {"text": shorten_text(safe_wrong_answers[1]), "is_correct": False},
+        {"text": shorten_text(safe_wrong_answers[2]), "is_correct": False},
     ]
 
     random.shuffle(answer_items)
@@ -175,126 +185,274 @@ def make_multiple_choice_question(question, correct_answer, wrong_answers, hint,
     }
 
 
-def choose_wrong_keywords(correct_keyword, keywords):
+def find_definition_sentence(topic, sentences):
     """
-    Creates wrong keyword choices.
-
-    It tries to use other extracted keywords first, then falls back to
-    generic unrelated words.
+    Finds a sentence that looks like it explains what the topic is.
     """
-    wrong_choices = []
+    topic_lower = topic.lower()
 
-    for keyword in keywords:
-        if keyword != correct_keyword and keyword not in wrong_choices:
-            wrong_choices.append(keyword)
-
-        if len(wrong_choices) == 3:
-            return wrong_choices
-
-    for word in GENERIC_WRONG_KEYWORDS:
-        if word != correct_keyword and word not in wrong_choices:
-            wrong_choices.append(word)
-
-        if len(wrong_choices) == 3:
-            return wrong_choices
-
-    return ["unrelated word", "random item", "unknown phrase"]
-
-
-def choose_sentence_wrong_answers():
-    """
-    Creates safe wrong answers for sentence-based questions.
-    """
-    return [
-        "The summary only discussed the app menu and did not explain the topic.",
-        "The summary said the topic cannot be studied from sources.",
-        "The summary was mainly about deleting local project files."
+    definition_patterns = [
+        " is ",
+        " are ",
+        " refers to ",
+        " means ",
+        " consists of ",
+        " is a ",
+        " is an ",
+        " is the ",
+        " are a ",
+        " are the "
     ]
+
+    for sentence in sentences:
+        sentence_lower = sentence.lower()
+
+        if topic_lower in sentence_lower:
+            for pattern in definition_patterns:
+                if pattern in sentence_lower:
+                    return sentence
+
+    for sentence in sentences:
+        sentence_lower = sentence.lower()
+
+        for pattern in definition_patterns:
+            if pattern in sentence_lower:
+                return sentence
+
+    if sentences:
+        return sentences[0]
+
+    return ""
+
+
+def find_history_or_importance_sentence(sentences):
+    """
+    Finds a sentence about history, use, importance, culture, or role.
+    """
+    signals = [
+        "history",
+        "historical",
+        "important",
+        "culture",
+        "cultures",
+        "used",
+        "use",
+        "role",
+        "significance",
+        "traditional",
+        "throughout",
+        "ancient",
+        "modern",
+        "known",
+        "noted",
+        "developed",
+        "became"
+    ]
+
+    for sentence in sentences:
+        sentence_lower = sentence.lower()
+
+        for signal in signals:
+            if signal in sentence_lower:
+                return sentence
+
+    if len(sentences) >= 2:
+        return sentences[1]
+
+    if sentences:
+        return sentences[0]
+
+    return ""
+
+
+def find_ingredient_or_part_sentence(sentences):
+    """
+    Finds a sentence about ingredients, parts, components, or what something is made of.
+    """
+    signals = [
+        "made from",
+        "made of",
+        "consists of",
+        "contains",
+        "include",
+        "includes",
+        "including",
+        "composed of",
+        "made by",
+        "produced by",
+        "created by",
+        "formed by"
+    ]
+
+    for sentence in sentences:
+        sentence_lower = sentence.lower()
+
+        for signal in signals:
+            if signal in sentence_lower:
+                return sentence
+
+    return ""
+
+
+def find_process_sentence(sentences):
+    """
+    Finds a sentence that describes a process or how something happens.
+    """
+    signals = [
+        "made by",
+        "produced by",
+        "created by",
+        "formed by",
+        "caused by",
+        "through",
+        "process",
+        "baking",
+        "cooking",
+        "fermentation",
+        "developed",
+        "using",
+        "requires"
+    ]
+
+    for sentence in sentences:
+        sentence_lower = sentence.lower()
+
+        for signal in signals:
+            if signal in sentence_lower:
+                return sentence
+
+    return ""
+
+
+def remove_topic_from_sentence(topic, sentence):
+    """
+    Turns a sentence into a simple fill-in-the-topic style answer when possible.
+    """
+    sentence = clean_text(sentence)
+    topic = clean_text(topic)
+
+    if not topic or not sentence:
+        return sentence
+
+    pattern = re.compile(re.escape(topic), re.IGNORECASE)
+    return pattern.sub("the topic", sentence, count=1)
 
 
 def create_topic_question(topic):
     """
-    Creates a question about the main topic.
+    Creates a basic topic-recognition question.
     """
     return make_multiple_choice_question(
         question="What topic was this internet summary mainly about?",
         correct_answer=topic,
         wrong_answers=[
-            "A random computer error",
             "A deleted local file",
-            "An unknown menu option"
+            "An unknown menu option",
+            "A random computer error"
         ],
         hint="Look at the topic title shown above the summary.",
         explanation="The topic title tells you what the internet summary is focused on."
     )
 
 
-def create_keyword_question(keyword, keywords):
+def create_definition_question(topic, definition_sentence):
     """
-    Creates a question about a keyword from the summary.
+    Creates a stronger concept question based on a definition-style sentence.
     """
-    wrong_answers = choose_wrong_keywords(keyword, keywords)
+    correct_answer = remove_topic_from_sentence(topic, definition_sentence)
 
     return make_multiple_choice_question(
-        question="Which keyword appeared as an important term in the internet summary?",
-        correct_answer=keyword,
-        wrong_answers=wrong_answers,
-        hint="The correct answer is a word pulled from the summary.",
-        explanation="Keywords help identify the main ideas in a summary."
+        question=f"Which answer best explains {topic} based on the summary?",
+        correct_answer=correct_answer,
+        wrong_answers=[
+            f"{topic} is mainly a command used only inside Git.",
+            f"{topic} is a local file created by the quiz app.",
+            f"{topic} is an error message from Command Prompt."
+        ],
+        hint="Look for the choice that explains the topic itself.",
+        explanation="This question checks the main concept, not just whether a word appeared."
     )
 
 
-def create_second_keyword_question(keyword, keywords):
+def create_importance_question(topic, sentence):
     """
-    Creates another keyword question when enough keywords exist.
+    Creates a question about why the topic matters.
     """
-    wrong_answers = choose_wrong_keywords(keyword, keywords)
-
     return make_multiple_choice_question(
-        question="Which word is another useful study keyword from the summary?",
-        correct_answer=keyword,
-        wrong_answers=wrong_answers,
-        hint="The correct answer came from the internet summary text.",
-        explanation="Finding repeated or important keywords can help you decide what to study next."
-    )
-
-
-def create_sentence_question(sentence):
-    """
-    Creates a question using a real sentence from the summary.
-    """
-    sentence = shorten_text(sentence)
-    wrong_answers = choose_sentence_wrong_answers()
-
-    return make_multiple_choice_question(
-        question="Which statement is supported by the internet summary?",
-        correct_answer=sentence,
-        wrong_answers=wrong_answers,
-        hint="Choose the answer that sounds like it came from the summary.",
-        explanation="This question uses an actual sentence from the internet summary."
-    )
-
-
-def create_main_idea_question(sentence):
-    """
-    Creates a beginner-friendly main idea question from the summary.
-    """
-    sentence = shorten_text(sentence)
-
-    return make_multiple_choice_question(
-        question="Which answer best matches one idea from the internet summary?",
+        question=f"Which detail helps explain why {topic} matters?",
         correct_answer=sentence,
         wrong_answers=[
-            "The topic has no information available.",
-            "The topic is only a saved review question.",
-            "The topic is only a Git command."
+            f"{topic} only matters because it changes the app menu.",
+            f"{topic} only matters because it deletes old Python files.",
+            f"{topic} only matters because it creates a Git commit."
         ],
-        hint="The correct choice is based on the summary text.",
-        explanation="Main idea questions help connect reading with recall."
+        hint="Choose the answer that gives real-world importance or context.",
+        explanation="Good learning questions ask why the topic matters, not only what words appeared."
     )
 
 
-def create_source_question(source_url):
+def create_parts_or_ingredients_question(topic, sentence):
+    """
+    Creates a question about what something includes, contains, or is made from.
+    """
+    return make_multiple_choice_question(
+        question=f"According to the summary, what is one useful detail about what {topic} includes or is made from?",
+        correct_answer=sentence,
+        wrong_answers=[
+            f"{topic} is made only from computer files.",
+            f"{topic} is made only from app menu choices.",
+            f"{topic} is made only from GitHub commits."
+        ],
+        hint="Look for the answer that sounds like a real detail from the summary.",
+        explanation="This question focuses on the actual concept details from the summary."
+    )
+
+
+def create_process_question(topic, sentence):
+    """
+    Creates a question about how something works or is made.
+    """
+    return make_multiple_choice_question(
+        question=f"Which answer describes a process or how something works for {topic}?",
+        correct_answer=sentence,
+        wrong_answers=[
+            f"{topic} works by deleting the review bank.",
+            f"{topic} works by changing only the command prompt color.",
+            f"{topic} works by skipping every source."
+        ],
+        hint="Choose the answer that explains a real process from the summary.",
+        explanation="Process questions help you understand how the topic works."
+    )
+
+
+def create_keyword_concept_question(topic, keywords):
+    """
+    Creates one keyword question, but frames it as study focus instead of trivia.
+    """
+    if not keywords:
+        return None
+
+    correct_keyword = keywords[0]
+
+    wrong_answers = []
+
+    for word in ["menu", "cache", "commit", "folder", "syntax", "terminal"]:
+        if word != correct_keyword:
+            wrong_answers.append(word)
+
+        if len(wrong_answers) == 3:
+            break
+
+    return make_multiple_choice_question(
+        question=f"Which term would be a useful study keyword for learning more about {topic}?",
+        correct_answer=correct_keyword,
+        wrong_answers=wrong_answers,
+        hint="The best answer is a topic-related word pulled from the summary.",
+        explanation="A study keyword should help you research or remember the topic."
+    )
+
+
+def create_source_question():
     """
     Creates a source-awareness question.
     """
@@ -311,28 +469,6 @@ def create_source_question(source_url):
     )
 
 
-def create_source_location_question(source_url):
-    """
-    Creates a question about the displayed source URL.
-    """
-    readable_url = source_url
-
-    if not readable_url:
-        readable_url = "No source URL was provided."
-
-    return make_multiple_choice_question(
-        question="Which answer best describes the source shown for this internet summary?",
-        correct_answer=readable_url,
-        wrong_answers=[
-            "A local review bank file",
-            "A deleted Python cache folder",
-            "A random app menu option"
-        ],
-        hint="Look at the URL shown after the summary.",
-        explanation="The source URL points to where the summary information came from."
-    )
-
-
 def create_safety_question():
     """
     Creates a safe-learning question.
@@ -343,21 +479,36 @@ def create_safety_question():
         wrong_answers=[
             "Assume it is always perfect.",
             "Ignore the source completely.",
-            "Delete the quiz engine.",
+            "Delete the quiz engine."
         ],
         hint="Important information should be verified.",
         explanation="Internet summaries are useful for learning, but important facts should be checked with trusted sources."
     )
 
 
-def create_no_summary_fallback_questions(topic, source_url):
+def add_unique_question(questions, new_question):
+    """
+    Adds a question only if it is not empty and not a duplicate prompt.
+    """
+    if not new_question:
+        return
+
+    new_prompt = new_question.get("question", "")
+
+    for question in questions:
+        if question.get("question", "") == new_prompt:
+            return
+
+    questions.append(new_question)
+
+
+def create_no_summary_fallback_questions(topic):
     """
     Creates safe fallback questions if no useful summary text is available.
     """
     questions = [
         create_topic_question(topic),
-        create_source_question(source_url),
-        create_source_location_question(source_url),
+        create_source_question(),
         create_safety_question(),
         make_multiple_choice_question(
             question="What should the app do when a summary is too short or unclear?",
@@ -377,7 +528,7 @@ def create_no_summary_fallback_questions(topic, source_url):
 
 def create_internet_quiz_questions(internet_result):
     """
-    Creates beginner-friendly quiz questions from an internet lookup result.
+    Creates beginner-friendly concept questions from an internet lookup result.
 
     Expected internet_result example:
     {
@@ -387,7 +538,7 @@ def create_internet_quiz_questions(internet_result):
     }
 
     This is not full AI question generation.
-    It is simple, predictable, source-aware quiz generation.
+    It uses simple pattern matching to create better concept-focused questions.
     """
     topic = get_result_value(
         internet_result,
@@ -411,48 +562,75 @@ def create_internet_quiz_questions(internet_result):
     summary = clean_text(summary)
     source_url = clean_text(source_url)
 
+    if not summary:
+        return create_no_summary_fallback_questions(topic)
+
     sentences = split_summary_into_sentences(summary)
     keywords = extract_keywords(summary)
 
-    if not summary:
-        return create_no_summary_fallback_questions(topic, source_url)
+    if not sentences:
+        return create_no_summary_fallback_questions(topic)
+
+    definition_sentence = find_definition_sentence(topic, sentences)
+    ingredient_sentence = find_ingredient_or_part_sentence(sentences)
+    process_sentence = find_process_sentence(sentences)
+    importance_sentence = find_history_or_importance_sentence(sentences)
 
     questions = []
 
-    # 1. Always include the topic question.
-    questions.append(create_topic_question(topic))
+    # Start with a simple orientation question.
+    add_unique_question(questions, create_topic_question(topic))
 
-    # 2. Add a keyword question if possible.
-    if len(keywords) >= 1:
-        questions.append(create_keyword_question(keywords[0], keywords))
+    # Prefer real concept questions over shallow word-matching.
+    if definition_sentence:
+        add_unique_question(questions, create_definition_question(topic, definition_sentence))
 
-    # 3. Add a second keyword question if possible.
-    if len(keywords) >= 2:
-        questions.append(create_second_keyword_question(keywords[1], keywords))
+    if ingredient_sentence:
+        add_unique_question(questions, create_parts_or_ingredients_question(topic, ingredient_sentence))
 
-    # 4. Add a sentence-based question if possible.
-    if len(sentences) >= 1:
-        questions.append(create_sentence_question(sentences[0]))
+    if process_sentence:
+        add_unique_question(questions, create_process_question(topic, process_sentence))
 
-    # 5. Add a second sentence/main idea question if possible.
-    if len(sentences) >= 2:
-        questions.append(create_main_idea_question(sentences[1]))
+    if importance_sentence:
+        add_unique_question(questions, create_importance_question(topic, importance_sentence))
 
-    # 6. Always include source awareness.
-    questions.append(create_source_question(source_url))
+    # Add one study-keyword question only if we need more questions.
+    if len(questions) < 4:
+        add_unique_question(questions, create_keyword_concept_question(topic, keywords))
 
-    # 7. Include source URL recognition if there is room.
-    questions.append(create_source_location_question(source_url))
+    # Add source/safety questions as useful support, not the whole quiz.
+    if len(questions) < 5:
+        add_unique_question(questions, create_source_question())
 
-    # 8. Always include safe-learning reminder.
-    questions.append(create_safety_question())
+    if len(questions) < 5:
+        add_unique_question(questions, create_safety_question())
 
-    # Keep quiz short and beginner-friendly.
+    # If the summary did not match enough patterns, use strong sentence-based concept questions.
+    sentence_index = 0
+
+    while len(questions) < 5 and sentence_index < len(sentences):
+        sentence = sentences[sentence_index]
+        add_unique_question(
+            questions,
+            make_multiple_choice_question(
+                question=f"Which statement best matches an idea from the {topic} summary?",
+                correct_answer=sentence,
+                wrong_answers=[
+                    f"{topic} is only a local file in the project.",
+                    f"{topic} is only a command prompt error.",
+                    f"{topic} is only a GitHub branch name."
+                ],
+                hint="Choose the answer that gives real information from the summary.",
+                explanation="This question checks understanding of a real idea from the summary."
+            )
+        )
+        sentence_index += 1
+
     return questions[:5]
 
 
 # Backward-friendly function names.
-# These help main.py work even if it was using a different function name before.
+# These help main.py work even if it imports a slightly different function name.
 
 def create_questions_from_internet_summary(internet_result):
     return create_internet_quiz_questions(internet_result)
@@ -464,5 +642,7 @@ def create_internet_summary_quiz(internet_result):
 
 def build_internet_quiz(internet_result):
     return create_internet_quiz_questions(internet_result)
+
+
 def create_internet_summary_questions(internet_result):
     return create_internet_quiz_questions(internet_result)
