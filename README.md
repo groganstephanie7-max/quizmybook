@@ -122,7 +122,8 @@ This feature uses `internet_lookup.py` to pull a live topic summary from Wikiped
 - Displays the source URL
 - Handles empty input
 - Allows the user to type `back` to return to the menu
-- Keeps the feature read-only for now
+- Asks whether the user wants to quiz themselves on the internet summary
+- Can turn the internet summary into beginner-friendly concept-focused quiz questions
 
 ### Example Flow
 
@@ -176,28 +177,111 @@ Source:
 https://en.wikipedia.org/wiki/Machine_learning
 
 Internet lookup complete.
-This is currently read-only.
-Next version can turn this summary into quiz questions.
+
+Would you like to quiz yourself on this internet summary? yes/no:
 ```
 
 ### Current Limitations
 
-Internet topic lookup is currently read-only.
+Internet topic lookup now supports a beginner-friendly quiz after the summary loads.
 
 It does not yet:
 
-- Generate quiz questions from the internet summary
+- Generate advanced AI-written quiz questions
 - Compare multiple sources
 - Fact-check across sources
 - Save internet summaries
-- Add internet lookup results to the review bank
-- Create source-backed lesson plans from live lookup results
+- Add internet lookup results directly to long-term saved summaries
+- Create full source-backed lesson plans from live lookup results
 
 ### Why This Matters
 
 Internet lookup is a major step toward QuizMyBook becoming a real source-backed learning assistant.
 
 Instead of only using built-in summaries, the app can now retrieve a live topic summary and show where the information came from.
+
+---
+
+## Internet Summary Quiz Generation
+
+QuizMyBook now includes internet summary quiz generation using `internet_quiz.py`.
+
+After an internet topic lookup finishes, the app can ask:
+
+```text
+Would you like to quiz yourself on this internet summary? yes/no:
+```
+
+If the user chooses `yes`, QuizMyBook creates a short beginner-friendly quiz from the internet lookup result.
+
+### Current Behavior
+
+The internet quiz can use:
+
+- The topic title
+- The Wikipedia summary
+- The source URL
+- Concept-focused sentence patterns
+- Definition-style sentences
+- Ingredient, component, or “made from” details
+- Process or “how it works” details
+- History, culture, role, or importance details
+- Safe learning reminders
+
+The generated internet quiz uses the existing quiz engine, so it supports:
+
+- Multiple-choice questions
+- Hints
+- Explanations
+- Score tracking
+- Typing `exit`
+- Missed-question review
+- Review bank saving
+
+### Important Honesty Note
+
+The internet quiz is not full AI quiz generation yet.
+
+It is currently simple, predictable, and beginner-friendly. The quiz questions are created from the internet lookup result using pattern matching, concept-focused sentence detection, and summary details.
+
+The app should not pretend that it fully fact-checks internet information yet.
+
+For important topics, the learner should still check information against trusted sources.
+
+### Example Internet Quiz Flow
+
+```text
+Choose an option: 5
+
+Internet Topic Lookup
+---------------------
+This feature pulls a live summary from Wikipedia.
+You can type 'back' to return to the main menu.
+
+Enter a topic to look up: machine learning
+```
+
+The app displays the topic, summary, and source URL.
+
+Then the app asks:
+
+```text
+Would you like to quiz yourself on this internet summary? yes/no: yes
+```
+
+The app then runs a quiz based on the internet summary.
+
+### Why This Matters
+
+This is a major step toward QuizMyBook becoming a source-backed learning assistant.
+
+The app can now move through this learning loop:
+
+```text
+Search topic → read summary → see source → answer concept questions → review missed questions
+```
+
+The internet quiz has been upgraded from mostly keyword/template questions to better concept questions. The goal is for questions to feel more like learning checks instead of only asking which words appeared in the summary.
 
 ---
 
@@ -710,7 +794,7 @@ Future versions may use ISBN or barcode lookup to identify a book and connect it
 
 Future versions of QuizMyBook may include:
 
-- Quiz generation from internet lookup summaries
+- More advanced concept-question generation from internet lookup summaries
 - Source-backed topic summaries from reliable online sources
 - Reliable source comparison
 - Fact-checking across multiple sources
@@ -745,6 +829,7 @@ quizmybook/
 ├── study_mode.py
 ├── source_summaries.py
 ├── internet_lookup.py
+├── internet_quiz.py
 ├── review_bank.example.json
 ├── review_bank.json
 ├── .gitignore
@@ -774,6 +859,9 @@ Stores built-in source-backed topic summaries, key terms, source notes, source l
 
 internet_lookup.py
 Pulls live topic summaries from Wikipedia and displays the source URL.
+
+internet_quiz.py
+Creates beginner-friendly concept-focused quiz questions from internet lookup results using the topic, summary, source URL, definition-style sentences, process details, importance details, and safe learning reminders.
 
 review_bank.example.json
 Shows the safe example structure for saved review questions.
@@ -886,6 +974,8 @@ Completed so far:
 - Source names, URLs, and notes displayed in summaries
 - Internet topic lookup using Wikipedia summaries
 - Internet source URL display
+- Internet summary quiz generation using `internet_quiz.py`
+- Concept-focused internet quiz questions
 - Pasted text quiz mode
 - Study mode choices
 - Quiz engine
@@ -910,7 +1000,7 @@ Completed so far:
 
 Recommended next steps:
 
-1. Generate quiz questions from internet lookup summaries.
+1. Improve answer-choice quality for internet concept questions.
 2. Save internet lookup summaries for later review.
 3. Add more quiz questions for each source-backed summary topic.
 4. Add automatic source lookup from reliable sources beyond Wikipedia.
@@ -939,6 +1029,33 @@ Instead of only creating quizzes, QuizMyBook should eventually be able to:
 7. Help the user review missed concepts
 8. Save learning progress over time
 9. Pull live topic information from reliable sources
+
+---
+
+## Latest Completed Update
+
+The latest completed update upgraded `internet_quiz.py` from simple keyword-heavy questions to concept-focused questions.
+
+The internet quiz can now try to create questions based on:
+
+- What the topic is
+- What the topic includes or is made from
+- How the topic works or is created
+- Why the topic matters
+- History, culture, role, or importance details
+- Source transparency
+- Safe learning and fact-check reminders
+
+This makes internet quizzes more useful for learning because the questions are less focused on simply recognizing words from the summary and more focused on understanding the concept.
+
+### Honest Current Limitation
+
+The concept-question system is still not true AI-generated question writing.
+
+It uses simple Python pattern matching. That means some questions may still sound awkward, and answer choices may sometimes be too easy or not perfectly natural.
+
+The next improvement should focus on making answer choices better and reducing awkward distractors.
+
 
 ---
 
