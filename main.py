@@ -6,6 +6,7 @@ from quiz_engine import run_quiz
 from pasted_text_quiz import create_pasted_text_questions
 from source_summaries import source_summaries, show_source_summary
 from internet_lookup import show_internet_summary
+from internet_quiz import create_internet_summary_questions
 
 
 REVIEW_BANK_FILE = "review_bank.json"
@@ -327,6 +328,30 @@ def ask_quiz_from_summary(summary_data):
             print("Please type yes or no.")
 
 
+def ask_quiz_from_internet_summary(internet_result):
+    questions = create_internet_summary_questions(internet_result)
+
+    if len(questions) == 0:
+        print("\nNo quiz questions could be created from this internet summary yet.")
+        return
+
+    while True:
+        quiz_choice = input(
+            "\nWould you like to quiz yourself on this internet summary? yes/no: "
+        ).strip().lower()
+
+        if quiz_choice in ["yes", "y"]:
+            start_quiz_session(questions)
+            return
+
+        elif quiz_choice in ["no", "n"]:
+            print("\nNo problem. You can review the internet summary again later.")
+            return
+
+        else:
+            print("Please type yes or no.")
+
+
 def handle_source_summaries():
     print("\nAvailable source-backed summaries:")
     topic_keys = list(source_summaries.keys())
@@ -377,8 +402,8 @@ def handle_internet_topic_search():
 
     if result["status"] == "success":
         print("\nInternet lookup complete.")
-        print("This is currently read-only.")
-        print("Next version can turn this summary into quiz questions.")
+        print("QuizMyBook can now turn this summary into simple quiz questions.")
+        ask_quiz_from_internet_summary(result)
 
 
 def handle_book_title_search():
