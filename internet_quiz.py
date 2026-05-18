@@ -17,18 +17,34 @@ STOP_WORDS = {
     "because", "however", "therefore", "although", "around", "within",
     "without", "across", "those", "them", "there", "here", "again",
     "against", "same", "different", "several", "various", "common",
-    "commonly", "important", "typically", "mainly"
+    "commonly", "important", "typically", "mainly", "substantial",
+    "amount", "become", "became", "commonplace"
 }
 
 
 GENERIC_DISTRACTORS = [
-    "It is only a local app setting.",
-    "It is mainly a Git command.",
-    "It is only a deleted cache file.",
-    "It is only an unknown menu option.",
-    "It is not connected to the topic summary.",
-    "It is only a saved review-bank file."
+    "It is a related idea, but it does not fully explain the main concept.",
+    "It describes only one small part of the topic, not the whole idea.",
+    "It sounds connected, but it reverses the main meaning.",
+    "It is a common misconception about the topic.",
+    "It is too broad and does not answer the question directly.",
+    "It is too narrow and leaves out the most important idea.",
 ]
+
+
+BAD_KEYWORDS = {
+    "about", "after", "again", "against", "amount", "became", "become",
+    "before", "commonplace", "different", "important", "including",
+    "known", "mainly", "other", "substantial", "through", "typically",
+    "using", "various", "within", "without"
+}
+
+
+STRONG_KEYWORD_SIGNALS = {
+    "agriculture", "cultures", "domesticated", "farming", "grain",
+    "harvest", "management", "population", "production", "seed",
+    "species", "storage", "transport", "worldwide"
+}
 
 
 def clean_text(text):
@@ -39,6 +55,75 @@ def clean_text(text):
         return ""
 
     return " ".join(str(text).split())
+
+
+def generate_concept_distractors(topic):
+    """
+    Creates safer, more believable wrong answers for concept questions.
+
+    These are not random nonsense answers. They are designed to be:
+    - related enough to feel plausible
+    - still clearly wrong when compared with the summary
+    - better for learning than unrelated Git/app/file distractors
+    """
+    topic = clean_text(topic)
+
+    if not topic:
+        topic = "The topic"
+
+    return [
+        f"{topic} is only a small part of a much larger concept.",
+        f"{topic} is often confused with a similar but different idea.",
+        f"{topic} is a general idea but does not fully explain the concept.",
+    ]
+
+
+def generate_process_distractors(topic):
+    """
+    Creates believable wrong answers for process/how-it-works questions.
+    """
+    topic = clean_text(topic)
+
+    if not topic:
+        topic = "The topic"
+
+    return [
+        f"{topic} happens through a completely unrelated process.",
+        f"{topic} works only because of one small detail, not the full process.",
+        f"{topic} is often explained backward from how it actually works.",
+    ]
+
+
+def generate_importance_distractors(topic):
+    """
+    Creates believable wrong answers for why-it-matters questions.
+    """
+    topic = clean_text(topic)
+
+    if not topic:
+        topic = "The topic"
+
+    return [
+        f"{topic} matters only in one narrow situation.",
+        f"{topic} is important for a reason that is related but incomplete.",
+        f"{topic} is often treated as important for the wrong reason.",
+    ]
+
+
+def generate_parts_distractors(topic):
+    """
+    Creates believable wrong answers for parts, ingredients, or components questions.
+    """
+    topic = clean_text(topic)
+
+    if not topic:
+        topic = "The topic"
+
+    return [
+        f"{topic} includes only one part and nothing else.",
+        f"{topic} is made from a related but incorrect set of parts.",
+        f"{topic} is often simplified in a way that leaves out key details.",
+    ]
 
 
 def get_result_value(internet_result, possible_keys, default_value=""):
@@ -99,7 +184,7 @@ def extract_keywords(summary, limit=10):
     This is not AI. It uses simple frequency and common-word filtering.
     """
     summary = clean_text(summary).lower()
-    words = re.findall(r"\b[a-zA-Z][a-zA-Z\-]{3,}\b", summary)
+    words = re.findall(r"\b[a-zA-Z][a-zA-Z\-]{4,}\b", summary)
 
     counts = {}
 
@@ -109,12 +194,21 @@ def extract_keywords(summary, limit=10):
         if word in STOP_WORDS:
             continue
 
+        if word in BAD_KEYWORDS:
+            continue
+
+        if word.endswith("ed") or word.endswith("ing"):
+            continue
+
         counts[word] = counts.get(word, 0) + 1
 
     sorted_words = sorted(
         counts.items(),
-        key=lambda item: item[1],
-        reverse=True
+        key=lambda item: (
+            item[0] not in STRONG_KEYWORD_SIGNALS,
+            -item[1],
+            item[0]
+        )
     )
 
     keywords = []
@@ -129,6 +223,46 @@ def extract_keywords(summary, limit=10):
     return keywords
 
 
+def generate_dynamic_distractors(topic, summary):
+    """
+    Creates smarter wrong answers using keywords from the summary.
+    This makes distractors feel more realistic and topic-related.
+    """
+    topic = clean_text(topic)
+    summary = clean_text(summary)
+
+    if not topic:
+        topic = "The topic"
+
+    words = extract_keywords(summary)
+
+    distractors = []
+
+    for word in words:
+        if word.lower() not in topic.lower():
+            patterns = [
+                f"{topic} is closely related to {word}.",
+                f"{word} plays a role in understanding {topic}.",
+                f"{topic} is sometimes confused with {word}.",
+                f"{word} is often mistaken as the main idea behind {topic}."
+            ]
+
+            distractors.append(random.choice(patterns))
+
+        if len(distractors) == 3:
+            break
+
+    fallback_distractors = generate_concept_distractors(topic)
+
+    for fallback in fallback_distractors:
+        if fallback not in distractors:
+            distractors.append(fallback)
+
+        if len(distractors) == 3:
+            break
+
+    return distractors[:3]
+
 def make_multiple_choice_question(question, correct_answer, wrong_answers, hint, explanation):
     """
     Builds a multiple-choice question and shuffles the answer choices.
@@ -140,6 +274,7 @@ def make_multiple_choice_question(question, correct_answer, wrong_answers, hint,
     labels = ["A", "B", "C", "D"]
 
     safe_wrong_answers = []
+    correct_answer = clean_text(correct_answer)
 
     for wrong_answer in wrong_answers:
         wrong_answer = clean_text(wrong_answer)
@@ -156,6 +291,9 @@ def make_multiple_choice_question(question, correct_answer, wrong_answers, hint,
 
         if len(safe_wrong_answers) == 3:
             break
+
+    while len(safe_wrong_answers) < 3:
+        safe_wrong_answers.append("It is related to the topic but does not answer this question correctly.")
 
     answer_items = [
         {"text": shorten_text(correct_answer), "is_correct": True},
@@ -338,18 +476,14 @@ def remove_topic_from_sentence(topic, sentence):
     return pattern.sub("the topic", sentence, count=1)
 
 
-def create_topic_question(topic):
+def create_topic_question(topic, summary):
     """
-    Creates a basic topic-recognition question.
+    Creates a basic topic-recognition question using real summary context.
     """
     return make_multiple_choice_question(
         question="What topic was this internet summary mainly about?",
         correct_answer=topic,
-        wrong_answers=[
-            "A deleted local file",
-            "An unknown menu option",
-            "A random computer error"
-        ],
+        wrong_answers=generate_dynamic_distractors(topic, summary),
         hint="Look at the topic title shown above the summary.",
         explanation="The topic title tells you what the internet summary is focused on."
     )
@@ -364,11 +498,7 @@ def create_definition_question(topic, definition_sentence):
     return make_multiple_choice_question(
         question=f"Which answer best explains {topic} based on the summary?",
         correct_answer=correct_answer,
-        wrong_answers=[
-            f"{topic} is mainly a command used only inside Git.",
-            f"{topic} is a local file created by the quiz app.",
-            f"{topic} is an error message from Command Prompt."
-        ],
+        wrong_answers=generate_dynamic_distractors(topic, definition_sentence),
         hint="Look for the choice that explains the topic itself.",
         explanation="This question checks the main concept, not just whether a word appeared."
     )
@@ -381,11 +511,7 @@ def create_importance_question(topic, sentence):
     return make_multiple_choice_question(
         question=f"Which detail helps explain why {topic} matters?",
         correct_answer=sentence,
-        wrong_answers=[
-            f"{topic} only matters because it changes the app menu.",
-            f"{topic} only matters because it deletes old Python files.",
-            f"{topic} only matters because it creates a Git commit."
-        ],
+        wrong_answers=generate_dynamic_distractors(topic, sentence),
         hint="Choose the answer that gives real-world importance or context.",
         explanation="Good learning questions ask why the topic matters, not only what words appeared."
     )
@@ -398,11 +524,7 @@ def create_parts_or_ingredients_question(topic, sentence):
     return make_multiple_choice_question(
         question=f"According to the summary, what is one useful detail about what {topic} includes or is made from?",
         correct_answer=sentence,
-        wrong_answers=[
-            f"{topic} is made only from computer files.",
-            f"{topic} is made only from app menu choices.",
-            f"{topic} is made only from GitHub commits."
-        ],
+        wrong_answers=generate_dynamic_distractors(topic, sentence),
         hint="Look for the answer that sounds like a real detail from the summary.",
         explanation="This question focuses on the actual concept details from the summary."
     )
@@ -415,11 +537,7 @@ def create_process_question(topic, sentence):
     return make_multiple_choice_question(
         question=f"Which answer describes a process or how something works for {topic}?",
         correct_answer=sentence,
-        wrong_answers=[
-            f"{topic} works by deleting the review bank.",
-            f"{topic} works by changing only the command prompt color.",
-            f"{topic} works by skipping every source."
-        ],
+        wrong_answers=generate_dynamic_distractors(topic, sentence),
         hint="Choose the answer that explains a real process from the summary.",
         explanation="Process questions help you understand how the topic works."
     )
@@ -433,12 +551,18 @@ def create_keyword_concept_question(topic, keywords):
         return None
 
     correct_keyword = keywords[0]
-
     wrong_answers = []
 
-    for word in ["menu", "cache", "commit", "folder", "syntax", "terminal"]:
-        if word != correct_keyword:
-            wrong_answers.append(word)
+    for keyword in keywords[1:]:
+        if keyword != correct_keyword and keyword not in wrong_answers:
+            wrong_answers.append(keyword)
+
+        if len(wrong_answers) == 3:
+            break
+
+    for fallback in ["related", "context", "background", "example", "category"]:
+        if fallback != correct_keyword and fallback not in wrong_answers:
+            wrong_answers.append(fallback)
 
         if len(wrong_answers) == 3:
             break
@@ -452,20 +576,25 @@ def create_keyword_concept_question(topic, keywords):
     )
 
 
-def create_source_question():
+def create_source_question(source_url):
     """
-    Creates a source-awareness question.
+    Creates a source-awareness question that uses the real source URL.
     """
+    source_url = clean_text(source_url)
+
+    if not source_url:
+        source_url = "No source URL was provided."
+
     return make_multiple_choice_question(
-        question="Why does QuizMyBook show a source URL after an internet lookup?",
-        correct_answer="So the learner can see where the summary came from.",
+        question="Where did the information for this summary come from?",
+        correct_answer=source_url,
         wrong_answers=[
-            "So the app can hide the source.",
-            "So the quiz can skip the topic.",
-            "So the review bank can be deleted."
+            "It was generated randomly without a source.",
+            "It came only from a local file on your computer.",
+            "It was created from the quiz review bank."
         ],
-        hint="A source URL helps with transparency.",
-        explanation="Showing the source URL helps the learner know where the information came from."
+        hint="Look at the source shown after the summary.",
+        explanation="Knowing the source helps you verify and trust the information."
     )
 
 
@@ -477,9 +606,9 @@ def create_safety_question():
         question="What should you do if internet information seems unclear, serious, or important?",
         correct_answer="Check it against trusted sources.",
         wrong_answers=[
-            "Assume it is always perfect.",
-            "Ignore the source completely.",
-            "Delete the quiz engine."
+            "Use only the shortest summary available.",
+            "Treat the first result as enough for every situation.",
+            "Focus only on memorizing the quiz answer."
         ],
         hint="Important information should be verified.",
         explanation="Internet summaries are useful for learning, but important facts should be checked with trusted sources."
@@ -502,21 +631,21 @@ def add_unique_question(questions, new_question):
     questions.append(new_question)
 
 
-def create_no_summary_fallback_questions(topic):
+def create_no_summary_fallback_questions(topic, source_url="No source URL was provided."):
     """
     Creates safe fallback questions if no useful summary text is available.
     """
     questions = [
-        create_topic_question(topic),
-        create_source_question(),
+        create_topic_question(topic, topic),
+        create_source_question(source_url),
         create_safety_question(),
         make_multiple_choice_question(
             question="What should the app do when a summary is too short or unclear?",
             correct_answer="Give a safe, simple quiz and remind the learner to check sources.",
             wrong_answers=[
-                "Pretend it fully understands the topic.",
-                "Delete all saved review questions.",
-                "Claim the summary is perfect."
+                "Use a related idea, but clearly show that the summary was limited.",
+                "Ask general source-checking questions instead of pretending to know more.",
+                "Keep the quiz simple and avoid unsupported details."
             ],
             hint="The app should stay honest when information is limited.",
             explanation="A safe learning app should be honest about weak or missing information."
@@ -563,13 +692,13 @@ def create_internet_quiz_questions(internet_result):
     source_url = clean_text(source_url)
 
     if not summary:
-        return create_no_summary_fallback_questions(topic)
+        return create_no_summary_fallback_questions(topic, source_url)
 
     sentences = split_summary_into_sentences(summary)
     keywords = extract_keywords(summary)
 
     if not sentences:
-        return create_no_summary_fallback_questions(topic)
+        return create_no_summary_fallback_questions(topic, source_url)
 
     definition_sentence = find_definition_sentence(topic, sentences)
     ingredient_sentence = find_ingredient_or_part_sentence(sentences)
@@ -579,7 +708,7 @@ def create_internet_quiz_questions(internet_result):
     questions = []
 
     # Start with a simple orientation question.
-    add_unique_question(questions, create_topic_question(topic))
+    add_unique_question(questions, create_topic_question(topic, summary))
 
     # Prefer real concept questions over shallow word-matching.
     if definition_sentence:
@@ -600,12 +729,12 @@ def create_internet_quiz_questions(internet_result):
 
     # Add source/safety questions as useful support, not the whole quiz.
     if len(questions) < 5:
-        add_unique_question(questions, create_source_question())
+        add_unique_question(questions, create_source_question(source_url))
 
     if len(questions) < 5:
         add_unique_question(questions, create_safety_question())
 
-    # If the summary did not match enough patterns, use strong sentence-based concept questions.
+    # If the summary did not match enough patterns, use sentence-based concept questions.
     sentence_index = 0
 
     while len(questions) < 5 and sentence_index < len(sentences):
@@ -615,11 +744,7 @@ def create_internet_quiz_questions(internet_result):
             make_multiple_choice_question(
                 question=f"Which statement best matches an idea from the {topic} summary?",
                 correct_answer=sentence,
-                wrong_answers=[
-                    f"{topic} is only a local file in the project.",
-                    f"{topic} is only a command prompt error.",
-                    f"{topic} is only a GitHub branch name."
-                ],
+                wrong_answers=generate_dynamic_distractors(topic, sentence),
                 hint="Choose the answer that gives real information from the summary.",
                 explanation="This question checks understanding of a real idea from the summary."
             )
