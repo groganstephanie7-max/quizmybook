@@ -1,10 +1,30 @@
 import json
+import textwrap
 import urllib.parse
 import urllib.request
 import urllib.error
 
 
 WIKIPEDIA_API_URL = "https://en.wikipedia.org/api/rest_v1/page/summary/"
+
+
+def print_wrapped_text(text, width=88):
+    """
+    Prints long text in readable wrapped lines for Command Prompt.
+    """
+    if not text:
+        print("No text available.")
+        return
+
+    paragraphs = str(text).split("\n")
+
+    for paragraph in paragraphs:
+        paragraph = paragraph.strip()
+
+        if not paragraph:
+            print()
+        else:
+            print(textwrap.fill(paragraph, width=width))
 
 
 def clean_topic(topic):
@@ -148,7 +168,7 @@ def show_internet_summary(topic):
     print(result["title"])
 
     print("\nSummary:")
-    print(result["summary"])
+    print_wrapped_text(result["summary"])
 
     print("\nSource:")
     print(result["source_url"])
